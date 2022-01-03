@@ -18,25 +18,39 @@ jobs:
     strategy:
       matrix:
         compiler: [clang, gcc]
-        os: [ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            shell: bash
+          - os: windows-latest
+            shell: msys2
+        os: [ubuntu-latest, windows-latest]
 
     steps:
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install libpng-dev libsamplerate0-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev ninja-build
-
       - uses: actions/checkout@v2
         with:
           submodules: true
 
+      - name: Install Ubuntu dependencies
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: sudo apt-get update && sudo apt-get install libpng-dev libsamplerate0-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev ninja-build
+
+      - uses: msys2/setup-msys2@v2
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          install: base-devel mingw-w64-i686-autotools mingw-w64-i686-${{ matrix.compiler }} mingw-w64-i686-libpng mingw-w64-i686-libsamplerate mingw-w64-i686-python-pillow mingw-w64-i686-SDL2_mixer mingw-w64-i686-SDL2_net
+          msystem: MINGW32
+          update: true
+
       - name: CMake
         env:
           CC: ${{ matrix.compiler }}
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: cmake -S . -B build -G Ninja && ninja -C build
 
       - name: Make
         env:
           CC: ${{ matrix.compiler }}
-        run: $GITHUB_WORKSPACE/.travis.sh
+        run: ${{ matrix.shell }} -c './.travis.sh'
 
   cppcheck:
     runs-on: ubuntu-18.04
@@ -46,10 +60,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install cppcheck
 
       - uses: actions/checkout@v2
-        with:
-          submodules: true
 
-      - name: Run cppcheck
+      - name: Cppcheck
         env:
           ANALYZE: true
-        run: $GITHUB_WORKSPACE/.travis.sh
+        run: ./.travis.sh
