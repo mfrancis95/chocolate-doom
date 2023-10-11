@@ -244,8 +244,10 @@ void I_Quit (void)
 
     while (entry != NULL)
     {
+        atexit_listentry_t *previous = entry;
         entry->func();
         entry = entry->next;
+        free(previous);
     }
 
     SDL_Quit();
